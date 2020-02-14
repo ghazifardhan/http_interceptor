@@ -1,7 +1,9 @@
 import 'dart:convert';
-import 'package:http/http.dart';
+import 'package:http/http.dart'
+    show MultipartFile, Request, MultipartRequest, BaseRequest;
 
 import 'package:http_interceptor/http_methods.dart';
+import 'package:http_interceptor/m_r.dart';
 import 'package:http_interceptor/models/merge_params.dart';
 
 class RequestData {
@@ -56,7 +58,7 @@ class RequestData {
   T toHttpRequest<T extends BaseRequest>() {
     Uri paramUrl = mergeParams(url, params);
     if (T.toString() == 'MultipartRequest') {
-      var request = MultipartRequest("POST", paramUrl);
+      var request = MR("POST", paramUrl);
       if (headers != null) request.headers.addAll(headers);
       if (body != null) request.fields.addAll(body);
       if (files != null) request.files.addAll(files);

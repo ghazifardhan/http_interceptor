@@ -6,12 +6,14 @@ A middleware library that lets you modify requests and responses if desired. Bas
 
 This is a plugin that lets you intercept the different requests and responses from Dart's http package. You can use to add headers, modify query params, or print a log of the response.
 
-### Installing
+### Install
 
-Include the package with the latest version available in your `pubspec.yaml`.
-
-```dart
-    http_interceptor: any
+```sh
+dependencies:
+  http_interceptor:
+    git:
+      url: https://github.com/januwA/http_interceptor.git
+      ref: master
 ```
 
 ### Importing

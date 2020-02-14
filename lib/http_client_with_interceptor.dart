@@ -2,8 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
 import 'package:http/http.dart';
+import 'package:http_interceptor/m_r.dart';
 import 'package:http_interceptor/models/merge_params.dart';
 import 'package:http_interceptor/models/models.dart';
 import 'package:http_interceptor/interceptor_contract.dart';
@@ -34,8 +34,8 @@ import 'http_methods.dart';
 ///```
 ///Don't forget to close the client once you are done, as a client keeps
 ///the connection alive with the server.
-class HttpClientWithInterceptor extends http.BaseClient {
-  List<InterceptorContract> interceptors;
+class HttpClientWithInterceptor extends BaseClient {
+  List<InterceptorContract> interceptors; // 所有拦截器
   Duration requestTimeout;
 
   final Client _client = Client();
@@ -54,61 +54,102 @@ class HttpClientWithInterceptor extends http.BaseClient {
     );
   }
 
-  Future<Response> head(url, {Map<String, String> headers}) => _sendUnstreamed(
+  Future<Response> head(
+    url, {
+    Map<String, String> headers,
+    Function(int bytes, int total) onProgress,
+  }) =>
+      _sendUnstreamed(
         method: Method.HEAD,
         url: url,
         headers: headers,
+        onProgress: onProgress,
       );
 
-  Future<Response> get(url,
-          {Map<String, String> headers,
-          Map<String, dynamic /*String|Iterable<String>*/ > params}) =>
+  Future<Response> get(
+    url, {
+    Map<String, String> headers,
+    Map<String, dynamic /*String|Iterable<String>*/ > params,
+    Function(int bytes, int total) onProgress,
+  }) =>
       _sendUnstreamed(
         method: Method.GET,
         url: url,
         headers: headers,
         params: params,
+        onProgress: onProgress,
       );
 
-  Future<Response> post(url,
-          {Map<String, String> headers, body, Encoding encoding}) =>
+  Future<Response> post(
+    url, {
+    Map<String, String> headers,
+    body,
+    Encoding encoding,
+    Function(int bytes, int total) onProgress,
+  }) =>
       _sendUnstreamed(
         method: Method.POST,
         url: url,
         headers: headers,
         body: body,
         encoding: encoding,
+        onProgress: onProgress,
       );
 
-  Future<Response> put(url,
-          {Map<String, String> headers, body, Encoding encoding}) =>
+  Future<Response> put(
+    url, {
+    Map<String, String> headers,
+    body,
+    Encoding encoding,
+    Function(int bytes, int total) onProgress,
+  }) =>
       _sendUnstreamed(
         method: Method.PUT,
         url: url,
         headers: headers,
         body: body,
         encoding: encoding,
+        onProgress: onProgress,
       );
 
-  Future<Response> patch(url,
-          {Map<String, String> headers, body, Encoding encoding}) =>
+  Future<Response> patch(
+    url, {
+    Map<String, String> headers,
+    body,
+    Encoding encoding,
+    Function(int bytes, int total) onProgress,
+  }) =>
       _sendUnstreamed(
         method: Method.PATCH,
         url: url,
         headers: headers,
         body: body,
         encoding: encoding,
+        onProgress: onProgress,
       );
 
-  Future<Response> delete(url, {Map<String, String> headers}) =>
+  Future<Response> delete(
+    url, {
+    Map<String, String> headers,
+    Function(int bytes, int total) onProgress,
+  }) =>
       _sendUnstreamed(
         method: Method.DELETE,
         url: url,
         headers: headers,
+        onProgress: onProgress,
       );
 
-  Future<String> read(url, {Map<String, String> headers}) {
-    return get(url, headers: headers).then((response) {
+  Future<String> read(
+    url, {
+    Map<String, String> headers,
+    Function(int bytes, int total) onProgress,
+  }) {
+    return get(
+      url,
+      headers: headers,
+      onProgress: onProgress,
+    ).then((response) {
       _checkResponseSuccess(url, response);
       return response.body;
     });
@@ -180,6 +221,8 @@ class HttpClientWithInterceptor extends http.BaseClient {
     Map<String, String> headers,
     Map<String, String> body,
     List<MultipartFile> files,
+    Function(int bytes, int total) onUploadProgress,
+    Function(int bytes, int total) onProgress,
   }) =>
       _sendUnstreamed(
         method: Method.POST,
@@ -187,10 +230,20 @@ class HttpClientWithInterceptor extends http.BaseClient {
         headers: headers,
         body: body,
         files: files,
+        onUploadProgress: onUploadProgress,
+        onProgress: onProgress,
       );
 
-  Future<Uint8List> readBytes(url, {Map<String, String> headers}) {
-    return get(url, headers: headers).then((response) {
+  Future<Uint8List> readBytes(
+    url, {
+    Map<String, String> headers,
+    Function(int bytes, int total) onProgress,
+  }) {
+    return get(
+      url,
+      headers: headers,
+      onProgress: onProgress,
+    ).then((response) {
       _checkResponseSuccess(url, response);
       return response.bodyBytes;
     });
@@ -206,12 +259,77 @@ class HttpClientWithInterceptor extends http.BaseClient {
     dynamic body,
     Encoding encoding,
     List<MultipartFile> files,
+    Function(int bytes, int total) onUploadProgress,
+    Function(int bytes, int total) onProgress,
   }) async {
     Uri paramUrl = url is Uri ? url : Uri.parse(url);
-    paramUrl = mergeParams(paramUrl, params);
+    var request = _createRequest(
+      method: method,
+      url: mergeParams(paramUrl, params),
+      headers: headers,
+      params: params,
+      body: body,
+      encoding: encoding,
+      files: files,
+      onUploadProgress: onUploadProgress,
+    );
+
+    // 运行request拦截器
+    for (var it in interceptors) {
+      RequestData r =
+          await it.interceptRequest(data: RequestData.fromHttpRequest(request));
+      request = files == null
+          ? r.toHttpRequest<Request>()
+          : r.toHttpRequest<MultipartRequest>();
+    }
+
+    var stream = requestTimeout == null
+        ? await send(request)
+        : await send(request).timeout(requestTimeout);
+
+    if (onProgress != null) {
+      int bytes = 0;
+      stream.stream.listen(
+        (List<int> d) {
+          bytes += d.length;
+          onProgress(bytes, stream.contentLength);
+        },
+      );
+    }
+
+    var response = await Response.fromStream(stream);
+
+    var responseData = ResponseData.fromHttpResponse(response);
+    for (var it in interceptors) {
+      responseData = await it.interceptResponse(data: responseData);
+    }
+
+    return responseData.toHttpResponse();
+  }
+
+  void _checkResponseSuccess(url, Response response) {
+    if (response.statusCode < 400) return;
+    var message = "Request to $url failed with status ${response.statusCode}";
+    if (response.reasonPhrase != null) {
+      message = "$message: ${response.reasonPhrase}";
+    }
+    if (url is String) url = Uri.parse(url);
+    throw new ClientException("$message.", url);
+  }
+
+  _createRequest({
+    Method method,
+    Uri url,
+    Map<String, String> headers,
+    Map<String, dynamic /*String|Iterable<String>*/ > params,
+    dynamic body,
+    Encoding encoding,
+    List<MultipartFile> files,
+    Function(int bytes, int total) onUploadProgress,
+  }) {
     var request;
     if (files == null) {
-      request = new Request(methodToString(method), paramUrl);
+      request = Request(methodToString(method), url);
       if (headers != null) request.headers.addAll(headers);
       if (encoding != null) request.encoding = encoding;
       if (body != null) {
@@ -226,44 +344,13 @@ class HttpClientWithInterceptor extends http.BaseClient {
         }
       }
     } else {
-      request = MultipartRequest(methodToString(method), paramUrl);
+      request =
+          MR(methodToString(method), url, onUploadProgress: onUploadProgress);
       if (headers != null) request.headers.addAll(headers);
       if (body != null) request.fields.addAll(body);
       if (files != null) request.files.addAll(files);
     }
-
-    //Perform request interception
-    for (InterceptorContract interceptor in interceptors) {
-      RequestData interceptedData = await interceptor.interceptRequest(
-        data: RequestData.fromHttpRequest(request),
-      );
-      request = files == null
-          ? interceptedData.toHttpRequest()
-          : interceptedData.toHttpRequest<MultipartRequest>();
-    }
-
-    var stream = requestTimeout == null
-        ? await send(request)
-        : await send(request).timeout(requestTimeout);
-
-    var response = await Response.fromStream(stream);
-
-    var responseData = ResponseData.fromHttpResponse(response);
-    for (InterceptorContract interceptor in interceptors) {
-      responseData = await interceptor.interceptResponse(data: responseData);
-    }
-
-    return responseData.toHttpResponse();
-  }
-
-  void _checkResponseSuccess(url, Response response) {
-    if (response.statusCode < 400) return;
-    var message = "Request to $url failed with status ${response.statusCode}";
-    if (response.reasonPhrase != null) {
-      message = "$message: ${response.reasonPhrase}";
-    }
-    if (url is String) url = Uri.parse(url);
-    throw new ClientException("$message.", url);
+    return request;
   }
 
   void close() {

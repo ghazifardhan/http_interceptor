@@ -1,5 +1,6 @@
 import 'package:http_interceptor/models/models.dart';
 
+/// 拦截器基类
 ///Interceptor interface to create custom Interceptor for http.
 ///Extend this class and override the functions that you want
 ///to intercept.
