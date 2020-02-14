@@ -8,17 +8,4 @@ environment:
   sdk: ">=2.2.2 <3.0.0"
 
 dependencies:
-  flutter:
-    sdk: flutter
   http: ^0.12.0
-
-dev_dependencies:
-  flutter_test:
-    sdk: flutter
-
-flutter:
-
-  plugin:
-    androidPackage: codingalecr.http_interceptor
-    pluginClass: HttpInterceptorPlugin
-

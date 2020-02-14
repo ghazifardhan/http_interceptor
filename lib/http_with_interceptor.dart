@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart';
 import 'package:http_interceptor/http_methods.dart';
 import 'package:http_interceptor/models/models.dart';
@@ -51,7 +50,8 @@ class HttpWithInterceptor {
   }
 
   Future<Response> get(url,
-      {Map<String, String> headers, Map<String, dynamic /*String|Iterable<String>*/> params}) async {
+      {Map<String, String> headers,
+      Map<String, dynamic /*String|Iterable<String>*/ > params}) async {
     RequestData data = await _sendInterception(
         method: Method.GET, headers: headers, url: url, params: params);
     return _withClient(
@@ -109,10 +109,10 @@ class HttpWithInterceptor {
       _withClient((client) => client.readBytes(url, headers: headers));
 
   Future<RequestData> _sendInterception({
-    @required Method method,
-    @required dynamic url,
-    @required Map<String, String> headers,
-    Map<String, dynamic /*String|Iterable<String>*/> params,
+    Method method,
+    dynamic url,
+    Map<String, String> headers,
+    Map<String, dynamic /*String|Iterable<String>*/ > params,
     dynamic body,
     Encoding encoding,
   }) async {

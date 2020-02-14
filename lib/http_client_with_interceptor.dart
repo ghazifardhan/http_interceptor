@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart';
 import 'package:http_interceptor/m_r.dart';
 import 'package:http_interceptor/models/merge_params.dart';
@@ -252,9 +251,9 @@ class HttpClientWithInterceptor extends BaseClient {
   Future<StreamedResponse> send(BaseRequest request) => _client.send(request);
 
   Future<Response> _sendUnstreamed({
-    @required Method method,
-    @required dynamic url,
-    @required Map<String, String> headers,
+    Method method,
+    dynamic url,
+    Map<String, String> headers,
     Map<String, dynamic /*String|Iterable<String>*/ > params,
     dynamic body,
     Encoding encoding,
@@ -287,17 +286,27 @@ class HttpClientWithInterceptor extends BaseClient {
         ? await send(request)
         : await send(request).timeout(requestTimeout);
 
-    if (onProgress != null) {
-      int bytes = 0;
-      stream.stream.listen(
-        (List<int> d) {
-          bytes += d.length;
-          onProgress(bytes, stream.contentLength);
-        },
-      );
-    }
+    List<int> bytes = [];
+    var completer = Completer<Uint8List>();
+    stream.stream.listen(
+      onProgress == null
+          ? (List<int> d) => bytes.addAll(d)
+          : (List<int> d) {
+              bytes.addAll(d);
+              onProgress(bytes.length, stream.contentLength);
+            },
+      onDone: () => completer.complete(Uint8List.fromList(bytes)),
+    );
 
-    var response = await Response.fromStream(stream);
+    var response = Response.bytes(
+      await completer.future,
+      stream.statusCode,
+      request: stream.request,
+      headers: stream.headers,
+      isRedirect: stream.isRedirect,
+      persistentConnection: stream.persistentConnection,
+      reasonPhrase: stream.reasonPhrase,
+    );
 
     var responseData = ResponseData.fromHttpResponse(response);
     for (var it in interceptors) {
