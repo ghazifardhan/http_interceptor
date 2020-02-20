@@ -1,3 +1,5 @@
+# This branch will no longer be maintained, please use [ajanuw_http](https://pub.dev/packages/ajanuw_http) or [http_interceptor](https://pub.dev/packages/http_interceptor)
+
 # http_interceptor
 
 A middleware library that lets you modify requests and responses if desired. Based of on [http_middleware](https://github.com/TEDConsulting/http_middleware)
