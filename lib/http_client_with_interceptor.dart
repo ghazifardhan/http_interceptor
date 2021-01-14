@@ -242,7 +242,7 @@ class HttpClientWithInterceptor extends BaseClient {
     Function(int bytes, int total) onProgress,
   }) =>
       _sendUnstreamed(
-        method: Method.POST,
+        method: Method.PUT,
         url: url,
         headers: headers,
         body: body,
