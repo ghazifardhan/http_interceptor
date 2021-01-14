@@ -233,6 +233,24 @@ class HttpClientWithInterceptor extends BaseClient {
         onProgress: onProgress,
       );
 
+  Future<Response> putFile(
+    url, {
+    Map<String, String> headers,
+    Map<String, String> body,
+    List<MultipartFile> files,
+    Function(int bytes, int total) onUploadProgress,
+    Function(int bytes, int total) onProgress,
+  }) =>
+      _sendUnstreamed(
+        method: Method.POST,
+        url: url,
+        headers: headers,
+        body: body,
+        files: files,
+        onUploadProgress: onUploadProgress,
+        onProgress: onProgress,
+      );
+
   Future<Uint8List> readBytes(
     url, {
     Map<String, String> headers,
