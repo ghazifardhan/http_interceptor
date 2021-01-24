@@ -159,7 +159,7 @@ class HttpClientWithInterceptor extends BaseClient {
   /// ```dart
   /// import 'dart:io';
   /// import 'package:async/async.dart';
-  /// import 'package:http_interceptor/http_interceptor.dart';
+  /// import 'package:kriya_people_prod/api/lib/http_interceptor.dart';
   /// import 'package:image_picker/image_picker.dart';
   /// import 'package:http/http.dart';
   /// import 'package:path/path.dart';
@@ -295,9 +295,12 @@ class HttpClientWithInterceptor extends BaseClient {
     for (var it in interceptors) {
       RequestData r =
           await it.interceptRequest(data: RequestData.fromHttpRequest(request));
+
+      log("poipoi_ ${methodToString(method)} ${files == null} ${r.method} ${request.toString()}");
+    
       request = files == null
-          ? r.toHttpRequest<Request>()
-          : r.toHttpRequest<MultipartRequest>();
+          ? r.toHttpRequest<Request>(theMethod: methodToString(method))
+          : r.toHttpRequest<MultipartRequest>(theMethod: methodToString(method));
     }
 
     var stream = requestTimeout == null
@@ -357,6 +360,7 @@ class HttpClientWithInterceptor extends BaseClient {
     var request;
     if (files == null) {
       request = Request(methodToString(method), url);
+      
       if (headers != null) request.headers.addAll(headers);
       if (encoding != null) request.encoding = encoding;
       if (body != null) {
@@ -371,8 +375,7 @@ class HttpClientWithInterceptor extends BaseClient {
         }
       }
     } else {
-      request =
-          MR(methodToString(method), url, onUploadProgress: onUploadProgress);
+      request = MR(methodToString(method), url, onUploadProgress: onUploadProgress);
       if (headers != null) request.headers.addAll(headers);
       if (body != null) request.fields.addAll(body);
       if (files != null) request.files.addAll(files);

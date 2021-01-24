@@ -55,10 +55,12 @@ class RequestData {
     return null;
   }
 
-  T toHttpRequest<T extends BaseRequest>() {
+  T toHttpRequest<T extends BaseRequest>({
+    String theMethod
+  }) {
     Uri paramUrl = mergeParams(url, params);
     if (T.toString() == 'MultipartRequest') {
-      var request = MR("POST", paramUrl);
+      var request = MR(theMethod, paramUrl);
       if (headers != null) request.headers.addAll(headers);
       if (body != null) request.fields.addAll(body);
       if (files != null) request.files.addAll(files);
